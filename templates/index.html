@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphs</title>
+    <style>
+        .container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: minmax(400px, auto);
+            grid-gap: 10px;
+        }
+        .chart-select {
+            grid-column: 1 / span 2;
+        }
+        .chart-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        .chart-item canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .chart-unit {
+            margin-top: 5px;
+            font-size: 12px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="chart-select">
+            <label for="chartSelect">Select Chart:</label>
+            <select id="chartSelect">
+                <option value="">-- Select Chart --</option>
+            </select>
+        </div>
+        <div id="chartContainer"></div>
+    </div>
+
+    <script>
+        // Retrieve the JSON data from the server
+        fetch('/data')
+            .then(response => response.json())
+            .then(data => {
+                // Extract labels from JSON data
+                const labels = Object.keys(data[0]);
+
+                // Remove 'Date' label from the list
+                const dateIndex = labels.indexOf('Date');
+                if (dateIndex > -1) {
+                    labels.splice(dateIndex, 1);
+                }
+
+                // Create options for chart select
+                const chartSelect = document.getElementById('chartSelect');
+                labels.forEach(label => {
+                    if (!label.includes('(Unit)')) {
+                        const option = document.createElement('option');
+                        option.value = label;
+                        option.textContent = label;
+                        chartSelect.appendChild(option);
+                    }
+                });
+
+                // Get unit of measurement for each label
+                const units = {};
+                labels.forEach(label => {
+                    const unitLabel = `${label}(Unit)`;
+                    if (labels.includes(unitLabel)) {
+                        const unitValue = data[0][unitLabel];
+                        units[label] = unitValue;
+                    }
+                });
+
+                // Create charts dynamically
+                function createCharts(selectedChart) {
+                    const chartContainer = document.getElementById('chartContainer');
+                    chartContainer.innerHTML = '';
+
+                    // Create selected chart
+                    if (selectedChart) {
+                        const selectedChartItem = document.createElement('div');
+                        selectedChartItem.className = 'chart-item';
+                        selectedChartItem.innerHTML = `
+                            <canvas id="selectedChartCanvas"></canvas>
+                            <div class="chart-unit">${units[selectedChart]}</div>
+                        `;
+                        chartContainer.appendChild(selectedChartItem);
+                        createChart(selectedChart, 'selectedChartCanvas');
+                    }
+
+                    // Create other charts in grid layout
+                    labels.forEach(label => {
+                        if (label !== selectedChart && !label.includes('(Unit)')) {
+                            const chartItem = document.createElement('div');
+                            chartItem.className = 'chart-item';
+                            chartItem.innerHTML = `
+                                <canvas id="${label}ChartCanvas"></canvas>
+                                <div class="chart-unit">${units[label]}</div>
+                            `;
+                            chartContainer.appendChild(chartItem);
+                            createChart(label, `${label}ChartCanvas`);
+                        }
+                    });
+                }
+
+                // Create individual chart
+                function createChart(label, canvasId) {
+                    const values = data.map(item => parseFloat(item[label]));
+
+                    const ctx = document.getElementById(canvasId).getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.map(item => item.Date),
+                            datasets: [{
+                                label: `${label} (${units[label]})`,
+                                data: values,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1,
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: units[label]
+                                    },
+                                    ticks: {
+                                        callback: function(value) {
+                                            return value + ' ' + units[label];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Event listener for chart select change
+                chartSelect.addEventListener('change', () => {
+                    const selectedChart = chartSelect.value;
+                    createCharts(selectedChart);
+                });
+            });
+    </script>
+</body>
+</html>
