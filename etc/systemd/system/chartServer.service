@@ -1,0 +1,12 @@
+[Unit]
+Description=Chart service
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/projects/poolData/
+ExecStart=/usr/bin/python3 /home/pi/projects/poolData/chartServer.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
